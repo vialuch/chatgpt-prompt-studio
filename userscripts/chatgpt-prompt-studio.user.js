@@ -183,20 +183,37 @@
   }
 
   function formatReference(item) {
-    return [
-      "Please use the following Prompt Studio item as a reference. Do not copy it directly; learn its structure, rhythm, and transferable technique.",
+    const lines = [
+      "Please use the following Prompt Studio item as a reference.",
+      "Do not copy it directly; learn its structure, rhythm, and transferable technique.",
       "",
       `Title: ${item.title || ""}`,
       `Room: ${item.room || ""}`,
       `Kind: ${item.kind || ""}`,
       `Tags: ${(item.tags || []).join(", ")}`,
       `Summary: ${item.summary || ""}`,
-      `Learning goal: ${item.learning_goal || ""}`,
-      "Reusable technique / prompt block:",
-      item.reusable || "",
-      "",
-      "Now create the content I need based on this reference.",
-    ].join("\n");
+    ];
+
+    if (item.memory_card?.learning_goal) {
+      lines.push(`Learning goal: ${item.memory_card.learning_goal}`);
+    } else if (item.learning_goal) {
+      lines.push(`Learning goal: ${item.learning_goal}`);
+    }
+    if (item.memory_card?.reuse_scenario) {
+      lines.push(`Reuse scenario: ${item.memory_card.reuse_scenario}`);
+    }
+    if (item.style_dna?.transferable_technique) {
+      lines.push(`Transferable technique: ${item.style_dna.transferable_technique}`);
+    }
+    if (item.usage_note) {
+      lines.push(`Usage note: ${item.usage_note}`);
+    }
+
+    lines.push("", "Reusable technique / prompt block:");
+    lines.push(item.reusable || "");
+    lines.push("", "Now create the content I need based on this reference.");
+
+    return lines.join("\n");
   }
 
   async function saveCurrent() {
@@ -492,10 +509,43 @@
         gap: 10px;
       }
       .ps-card {
+        position: relative;
         border: 1px solid rgba(120, 90, 140, 0.14);
         border-radius: 14px;
         padding: 12px;
         background: #fffafd;
+      }
+      .ps-badge {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: linear-gradient(120deg, #efe2ff, #ffe8f3);
+        color: #6b3fa0;
+      }
+      .ps-note {
+        color: #7d6079;
+        font-size: 12px;
+        margin: 4px 0;
+      }
+      .ps-risk {
+        color: #b00020;
+        font-size: 12px;
+        margin: 4px 0;
+      }
+      details.ps-dna {
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      details.ps-dna summary {
+        cursor: pointer;
+        color: #6b3fa0;
+      }
+      details.ps-dna div {
+        margin: 3px 0;
+        white-space: pre-wrap;
       }
       .ps-card h3 {
         margin: 0 0 6px;
@@ -637,10 +687,47 @@
     );
   }
 
+  function dnaDetails(label, fields) {
+    const rows = fields
+      .filter(([, value]) => value && String(value).trim())
+      .map(([key, value]) => create("div", { text: `${key}: ${value}` }));
+    if (!rows.length) return null;
+    return create("details", { class: "ps-dna" }, [
+      create("summary", { text: label }),
+      ...rows,
+    ]);
+  }
+
   function renderItem(item) {
     const tags = Array.isArray(item.tags) ? item.tags : [];
-    const copyPayload = [item.reusable, item.summary, item.learning_goal].filter(Boolean).join("\n\n");
+    const learningGoal = item.memory_card?.learning_goal || item.learning_goal || "";
+    const copyPayload = [item.reusable, item.summary, learningGoal].filter(Boolean).join("\n\n");
+
+    const styleDna = item.style_dna
+      ? dnaDetails("Style DNA", [
+          ["Rhythm", item.style_dna.rhythm],
+          ["Syntax", item.style_dna.syntax],
+          ["Sensory", item.style_dna.sensory],
+          ["Emotion", item.style_dna.emotion],
+          ["Transferable technique", item.style_dna.transferable_technique],
+        ])
+      : null;
+
+    const promptDna = item.prompt_dna && item.prompt_dna.subject
+      ? dnaDetails("Prompt DNA", [
+          ["Subject", item.prompt_dna.subject],
+          ["Style", item.prompt_dna.style],
+          ["Composition", item.prompt_dna.composition],
+          ["Lighting", item.prompt_dna.lighting],
+          ["Color", item.prompt_dna.color],
+          ["Materials", item.prompt_dna.materials],
+          ["Negative", item.prompt_dna.negative],
+          ["Reusable blocks", (item.prompt_dna.reusable_blocks || []).join(", ")],
+        ])
+      : null;
+
     return create("article", { class: "ps-card" }, [
+      item.enriched ? create("span", { class: "ps-badge", text: "✨ AI" }) : null,
       create("h3", { text: item.title || "Untitled" }),
       create("div", { class: "ps-meta" }, [
         create("span", { text: item.room || "Inbox" }),
@@ -648,8 +735,12 @@
         ...tags.slice(0, 5).map((tag) => create("span", { text: `#${tag}` })),
       ]),
       item.summary ? create("p", { text: item.summary }) : null,
-      item.learning_goal ? create("p", { text: `Goal: ${item.learning_goal}` }) : null,
+      learningGoal ? create("p", { text: `Goal: ${learningGoal}` }) : null,
       item.user_note ? create("p", { text: `Note: ${item.user_note}` }) : null,
+      item.usage_note ? create("p", { class: "ps-note", text: `Usage: ${item.usage_note}` }) : null,
+      item.risk_note ? create("p", { class: "ps-risk", text: `⚠️ ${item.risk_note}` }) : null,
+      styleDna,
+      promptDna,
       item.reusable ? create("details", { class: "ps-reusable" }, [
         create("summary", { text: "Reusable prompt / source text" }),
         create("div", { text: item.reusable }),

@@ -37,12 +37,19 @@ chatgpt-prompt-studio/
   server/
     package.json
     server.js
+    notion.js
+    ai-enrich.js
     data/
       .gitkeep
+  telegram/
+    package.json
+    bot.js
   docs/
     install-userscripts.md
     deploy-backend.md
     notion-adapter.md
+    ai-enrichment.md
+    telegram-bot.md
   .env.example
   .gitignore
   LICENSE
@@ -86,6 +93,63 @@ to your deployed API URL when you put the backend on a server.
 - `userscripts/web-clipper.user.js`
 
 See [Install Userscripts](docs/install-userscripts.md).
+
+## AI Enrichment (Optional)
+
+Set an OpenAI key and every clip is automatically analyzed when saved: a one-line
+summary, tags, a `kind` classification, a room, style DNA (rhythm / syntax /
+sensory / emotion / transferable technique), prompt DNA for image prompts, and a
+reusable-technique breakdown — no manual tagging.
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+If no key is set, clips still save normally — they just skip the analysis. If a
+call fails or times out, the clip is saved with a local rule-based fallback so a
+save is never lost. See [AI Enrichment](docs/ai-enrichment.md).
+
+## Notion Storage (Optional)
+
+By default clips are stored as local JSON. Point the backend at a Notion database
+to use Notion instead:
+
+1. Create a Notion integration and copy its internal integration token.
+2. Share your target database with that integration.
+3. Set the env vars:
+
+```bash
+NOTION_TOKEN=your_notion_integration_token_here
+NOTION_DATABASE_ID=your_database_id_here
+```
+
+When both are set the server switches to Notion automatically (and still keeps a
+local JSON backup). See [Notion Adapter](docs/notion-adapter.md) for the required
+database properties.
+
+## Telegram Bot (Optional)
+
+Save clips from your phone by forwarding text to a Telegram bot:
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and copy the token.
+2. Configure `telegram/.env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+CLIP_API_BASE=http://localhost:8787
+```
+
+3. Run it:
+
+```bash
+cd telegram
+npm install
+npm start
+```
+
+Send the bot any text, pick a room, and it POSTs to your clip API (which runs AI
+enrichment automatically). See [Telegram Bot](docs/telegram-bot.md).
 
 ## Userscripts
 
